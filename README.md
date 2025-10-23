@@ -61,6 +61,5 @@ Number of Pages for System:      52429
 Size of Page Table Entry:        19
 Total RAM for Page Table(s):     122880 bytes
 ```
-
 ## Notes and assumptions
 - Page size is fixed at 4 KB. 
