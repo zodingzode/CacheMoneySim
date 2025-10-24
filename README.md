@@ -7,6 +7,13 @@ gcc cacheSim.c -o cacheSim -lm
 
 ```
 
+```bash
+# Powershell / Windows
+gcc cacheSim.c -o cacheSim 
+
+```
+
+
 ## Usage
 ```bash
 ./cacheSim   -s <cacheKB>   -b <blockBytes>   -a <associativity|-1>   -r <lr|lf|rr|ra|mr>   -p <physMB>   -u <systemMemPercent>   -n <instructionsPerSlice|-1>   -f <trace1> [-f <trace2> ...]
