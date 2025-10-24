@@ -3,7 +3,7 @@
 ## Build
 ```bash
 # WSL / Linux
-gcc -std=c11 -O2 -Wall -Wextra cacheSim.c -o cacheSim -lm
+gcc cacheSim.c -o cacheSim -lm
 
 ```
 
