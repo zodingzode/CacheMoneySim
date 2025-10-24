@@ -47,7 +47,7 @@ void exitBadParameters(char *msg) {
     printf("                          (ra - random)\n");
     printf("                          (mr - most recent used)\n");
     printf("  -p  physical memory in MB (value range: 128 - 4096)\n");
-    printf("  -u  \% physical memory used (value range: 0 - 100)\n");
+    printf("  -u  physical memory used (value range: 0 - 100)\n");
     printf("  -n  Instructions / Time Slice (value range: 1 - inf  | -1 for ALL)\n");
     printf("  -f  File name to parse\n");
 }
@@ -183,7 +183,7 @@ int main(int argc, char *argv[]) {
     iPhysicalPageTableEntrySize = (int) ceil(log2(iPhysicalPages)) + 1;
     
 
-    printf("Cache Simulator - Cs 3853 - Team #04\n\n");
+    printf("Cache Simulator - CS 3853 - Team #04\n\n");
     printf("Trace File(s):\n");
     for (int i = 0; i < iFileCount; i++) {
         if (!file_exists_and_readable(sArrFiles[i])) {
@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
     printf("%-32s%d\n","Associativity:",iCacheAssoc);
     printf("%-32s%s\n","Replacement Policy:", policy_name(sCacheReplacePolicy));
     printf("%-32s%.0f MB\n","Physical Memory:",byteToMB(iPhysicalMemory));
-    printf("%-32s%-.1f\%\n","Percent Memory Used by System:",dSystemMemoryPerc);
+    printf("%-32s%-.1f\n","Percent Memory Used by System:",dSystemMemoryPerc);
     printf("%-32s%d\n","Instructions / Time Slice:",iInstructionSize);
 
     printf("\n***** Cache Calculated Values *****\n\n");
@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
         //printf("%-34s%d %s\n","Offset Size:",iAddressBusOffsetSize,"bits  (tmp)");
     printf("%-32s%d\n","Total # Rows:",iCacheSetCount);
     printf("%-32s%d bytes\n","Overhead Size:",iCacheSizeOverhead);
-    printf("%-32s%.2f KB  (%d bytes)\n","Implementation Memory Size:",byteToKB(iCacheSize + iCacheSizeOverhead)),(iCacheSize + iCacheSizeOverhead);
+    printf("%-32s%.2f KB  (%d bytes)\n","Implementation Memory Size:",byteToKB(iCacheSize + iCacheSizeOverhead),(iCacheSize + iCacheSizeOverhead));
     printf("%-32s$%.2f @ $0.07 per KB\n","Cost:",byteToKB(iCacheSize + iCacheSizeOverhead) * 0.07);
     
     printf("\n***** Physical Memory Calculated Values *****\n\n");
