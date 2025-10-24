@@ -188,10 +188,10 @@ int main(int argc, char *argv[]) {
     printf("Trace File(s):\n");
     for (int i = 0; i < iFileCount; i++) {
         if (!file_exists_and_readable(sArrFiles[i])) {
-            printf("%8s%-24s %s","XX ",sArrFiles[i],"[FILE NOT FOUND]");
+            printf("%8s%-24s %s\n","XX ",sArrFiles[i],"[FILE NOT FOUND]");
         }
         else {
-            printf("%8s%-24s","",sArrFiles[i]);
+            printf("%8s%-24s\n","",sArrFiles[i]);
         }
     }
 
