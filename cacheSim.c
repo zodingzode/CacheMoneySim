@@ -1,11 +1,21 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <math.h>
- // gcc cacheSim.c -o cacheSim
+#include <math.h> 
+ // gcc cacheSim.c -o cacheSim 
+ // REVIEW RODRIGO gcc cacheSim.c -o cacheSim -lm
  // ./cacheSim ... ... .......
  // rm cacheSim.exe
 
+
+const char* policy_name(char *policy){ 
+    if(strcmp(policy, "lr") == 0) return "Least Recent used";
+    if(strcmp(policy, "lf") == 0) return "Least Frequent used";
+    if(strcmp(policy, "rr") == 0) return "Round Robin";
+    if(strcmp(policy, "ra") == 0) return "Random";
+    if(strcmp(policy, "mr") == 0) return "Most Recent Used";
+}
+  
 int file_exists_and_readable(char *filename) {
     FILE *f;
     if ((f = fopen(filename,"r")) != NULL) {
@@ -188,6 +198,7 @@ int main(int argc, char *argv[]) {
     printf("%-32s%.0f KB\n","Cache Size:",byteToKB(iCacheSize));
     printf("%-32s%d bytes\n","Block Size:",iCacheBlockSize);
     printf("%-32s%d\n","Associativity:",iCacheAssoc);
+    printf("%-32s%s\n","Replacement Policy:", policy_name(sCacheReplacePolicy));
     printf("%-32s%.0f MB\n","Physical Memory:",byteToMB(iPhysicalMemory));
     printf("%-32s%-.1f\%\n","Percent Memory Used by System:",dSystemMemoryPerc);
     printf("%-32s%d\n","Instructions / Time Slice:",iInstructionSize);
