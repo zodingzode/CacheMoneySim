@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h> 
  // gcc cacheSim.c -o cacheSim 
  // REVIEW RODRIGO gcc cacheSim.c -o cacheSim -lm
@@ -29,7 +30,7 @@ double byteToKB(int iByteSize) {
     return ceil((double) iByteSize / 1024);
 }
 
-double byteToMB(int iByteSize) {
+double byteToMB(int64_t iByteSize) {
     return ((double) iByteSize / 1024) / 1024;
 }
 
@@ -47,14 +48,14 @@ void exitBadParameters(char *msg) {
     printf("                          (ra - random)\n");
     printf("                          (mr - most recent used)\n");
     printf("  -p  physical memory in MB (value range: 128 - 4096)\n");
-    printf("  -u  \% physical memory used (value range: 0 - 100)\n");
+    printf("  -u  physical memory used (value range: 0 - 100)\n");
     printf("  -n  Instructions / Time Slice (value range: 1 - inf  | -1 for ALL)\n");
     printf("  -f  File name to parse\n");
 }
 
 int main(int argc, char *argv[]) {
 
-    int iPhysicalMemory = 0;
+    int64_t biPhysicalMemory = 0;
     int iPhysicalPages = 0;
     int iPhysicalPageTableEntrySize = 0;
     int iCacheSize = 0;
@@ -113,7 +114,7 @@ int main(int argc, char *argv[]) {
         else if (!strcmp(argv[i],"-p")) {
             // read physical memory size
             //printf("reading -p\n");
-            iPhysicalMemory = atoi(argv[i+1]) * 1024 * 1024;    // received in MB (128 - 4096)
+            biPhysicalMemory = atoll(argv[i+1]) * 1024LL * 1024LL;
         }
         else if (!strcmp(argv[i],"-n")) {
             // read instructions / time slice
@@ -169,7 +170,7 @@ int main(int argc, char *argv[]) {
     iCacheSetCount = (iCacheAssoc <= 0 ? iCacheBlockCount : (int) ceil(iCacheBlockCount/iCacheAssoc));
 
     // calculate address space
-    iAddressBusSize = (int) ceil(log2(iPhysicalMemory));
+    iAddressBusSize = (int) ceil(log2(biPhysicalMemory));
     iAddressBusIndexSize = (int) ceil(log2(iCacheSize));
     iAddressBusOffsetSize = (int) ceil(log2(iCacheBlockSize));
     iAddressBusTagSize = iAddressBusSize - (iAddressBusIndexSize + iAddressBusOffsetSize);
@@ -179,18 +180,18 @@ int main(int argc, char *argv[]) {
     iCacheSizeOverhead = (int) ceil(iCacheBlockCount * (((double)iAddressBusTagSize/8) + 0.125));
     
     // calculate physical pages
-    iPhysicalPages = ceil(iPhysicalMemory / 4096); // assume default page size is 
+    iPhysicalPages = ceil(biPhysicalMemory / 4096); // assume default page size is 
     iPhysicalPageTableEntrySize = (int) ceil(log2(iPhysicalPages)) + 1;
     
 
-    printf("Cache Simulator - Cs 3853 - Team #04\n\n");
+    printf("Cache Simulator - CS 3853 - Team #04\n\n");
     printf("Trace File(s):\n");
     for (int i = 0; i < iFileCount; i++) {
         if (!file_exists_and_readable(sArrFiles[i])) {
-            printf("%8s%-24s %s","XX ",sArrFiles[i],"[FILE NOT FOUND]");
+            printf("%8s%-24s %s\n","XX ",sArrFiles[i],"[FILE NOT FOUND]");
         }
         else {
-            printf("%8s%-24s","",sArrFiles[i]);
+            printf("%8s%-24s\n","",sArrFiles[i]);
         }
     }
 
@@ -199,8 +200,8 @@ int main(int argc, char *argv[]) {
     printf("%-32s%d bytes\n","Block Size:",iCacheBlockSize);
     printf("%-32s%d\n","Associativity:",iCacheAssoc);
     printf("%-32s%s\n","Replacement Policy:", policy_name(sCacheReplacePolicy));
-    printf("%-32s%.0f MB\n","Physical Memory:",byteToMB(iPhysicalMemory));
-    printf("%-32s%-.1f\%\n","Percent Memory Used by System:",dSystemMemoryPerc);
+    printf("%-32s%.0f MB\n","Physical Memory:",byteToMB(biPhysicalMemory));
+    printf("%-32s%-.1f\n","Percent Memory Used by System:",dSystemMemoryPerc);
     printf("%-32s%d\n","Instructions / Time Slice:",iInstructionSize);
 
     printf("\n***** Cache Calculated Values *****\n\n");
@@ -211,7 +212,7 @@ int main(int argc, char *argv[]) {
         //printf("%-34s%d %s\n","Offset Size:",iAddressBusOffsetSize,"bits  (tmp)");
     printf("%-32s%d\n","Total # Rows:",iCacheSetCount);
     printf("%-32s%d bytes\n","Overhead Size:",iCacheSizeOverhead);
-    printf("%-32s%.2f KB  (%d bytes)\n","Implementation Memory Size:",byteToKB(iCacheSize + iCacheSizeOverhead)),(iCacheSize + iCacheSizeOverhead);
+    printf("%-32s%.2f KB  (%d bytes)\n","Implementation Memory Size:",byteToKB(iCacheSize + iCacheSizeOverhead),(iCacheSize + iCacheSizeOverhead));
     printf("%-32s$%.2f @ $0.07 per KB\n","Cost:",byteToKB(iCacheSize + iCacheSizeOverhead) * 0.07);
     
     printf("\n***** Physical Memory Calculated Values *****\n\n");
