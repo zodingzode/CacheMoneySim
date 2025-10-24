@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h> 
  // gcc cacheSim.c -o cacheSim 
  // REVIEW RODRIGO gcc cacheSim.c -o cacheSim -lm
@@ -29,7 +30,7 @@ double byteToKB(int iByteSize) {
     return ceil((double) iByteSize / 1024);
 }
 
-double byteToMB(int iByteSize) {
+double byteToMB(int64_t iByteSize) {
     return ((double) iByteSize / 1024) / 1024;
 }
 
@@ -54,7 +55,7 @@ void exitBadParameters(char *msg) {
 
 int main(int argc, char *argv[]) {
 
-    int iPhysicalMemory = 0;
+    int64_t biPhysicalMemory = 0;
     int iPhysicalPages = 0;
     int iPhysicalPageTableEntrySize = 0;
     int iCacheSize = 0;
@@ -113,7 +114,7 @@ int main(int argc, char *argv[]) {
         else if (!strcmp(argv[i],"-p")) {
             // read physical memory size
             //printf("reading -p\n");
-            iPhysicalMemory = atoi(argv[i+1]) * 1024 * 1024;    // received in MB (128 - 4096)
+            biPhysicalMemory = atoll(argv[i+1]) * 1024LL * 1024LL;
         }
         else if (!strcmp(argv[i],"-n")) {
             // read instructions / time slice
@@ -169,7 +170,7 @@ int main(int argc, char *argv[]) {
     iCacheSetCount = (iCacheAssoc <= 0 ? iCacheBlockCount : (int) ceil(iCacheBlockCount/iCacheAssoc));
 
     // calculate address space
-    iAddressBusSize = (int) ceil(log2(iPhysicalMemory));
+    iAddressBusSize = (int) ceil(log2(biPhysicalMemory));
     iAddressBusIndexSize = (int) ceil(log2(iCacheSize));
     iAddressBusOffsetSize = (int) ceil(log2(iCacheBlockSize));
     iAddressBusTagSize = iAddressBusSize - (iAddressBusIndexSize + iAddressBusOffsetSize);
@@ -179,7 +180,7 @@ int main(int argc, char *argv[]) {
     iCacheSizeOverhead = (int) ceil(iCacheBlockCount * (((double)iAddressBusTagSize/8) + 0.125));
     
     // calculate physical pages
-    iPhysicalPages = ceil(iPhysicalMemory / 4096); // assume default page size is 
+    iPhysicalPages = ceil(biPhysicalMemory / 4096); // assume default page size is 
     iPhysicalPageTableEntrySize = (int) ceil(log2(iPhysicalPages)) + 1;
     
 
@@ -199,7 +200,7 @@ int main(int argc, char *argv[]) {
     printf("%-32s%d bytes\n","Block Size:",iCacheBlockSize);
     printf("%-32s%d\n","Associativity:",iCacheAssoc);
     printf("%-32s%s\n","Replacement Policy:", policy_name(sCacheReplacePolicy));
-    printf("%-32s%.0f MB\n","Physical Memory:",byteToMB(iPhysicalMemory));
+    printf("%-32s%.0f MB\n","Physical Memory:",byteToMB(biPhysicalMemory));
     printf("%-32s%-.1f\n","Percent Memory Used by System:",dSystemMemoryPerc);
     printf("%-32s%d\n","Instructions / Time Slice:",iInstructionSize);
 
