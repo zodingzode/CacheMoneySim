@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
         exitBadParameters("Missing or invalid Replacement Policy");
         return 1;
     }
-    if (dSystemMemoryPerc < 0 || dSystemMemoryPerc > 100) {
+    if (iInstructionSize < -1 || iInstructionSize == 0) {
         exitBadParameters("Missing or invalid Instruction Size");
         return 1;
     }
