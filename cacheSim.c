@@ -8,7 +8,7 @@
 #include <stdbool.h>
  // gcc cacheSim.c -o cacheSim 
  // REVIEW RODRIGO gcc cacheSim.c -o cacheSim -lm
- // ./cacheSim ... ... .......
+ // ./cacheSim.exe -s 512 -b 16 -a 4 -r rr -p 1024 -n 100 -u 75 -f Trace1half.trc -f A-9_new_trunk1.trc -f A-10_new_1.5_a.pdf.trc
  // rm cacheSim.exe
 
 
@@ -112,7 +112,8 @@ void exitBadParameters(char *msg) {
 }
 
 void printSimulationResults(struct PhysicalMemory *pm, 
-                            struct VM *vms, 
+                            struct VM *vms,
+                            char *sArrFileNames[], 
                             int iNumVMs)
 {
     uint64_t systemUsed = (uint64_t)(pm->i64NumFrames * pm->dSystemMemoryPerc);
@@ -124,14 +125,7 @@ void printSimulationResults(struct PhysicalMemory *pm,
 
     uint64_t i64TotalHits = pm->i64NumAccesses - i64TotalFaults;
 
-    uint64_t i64TotalPagesMapped = 0;
-    for (int i = 0; i < iNumVMs; i++) {
-        struct VM *vm = &vms[i];
-        for (uint64_t p = 0; p < vm->i64NumVPages; p++) {
-            if (vm->pageTable[p].i8Flags & 0x1)  // FLAG_VALID
-                i64TotalPagesMapped++;
-        }
-    }
+    uint64_t i64TotalPagesMapped = i64TotalHits + pm->i64PagesFromFree + i64TotalFaults;
 
     printf("\n\n***** VIRTUAL MEMORY SIMULATION RESULTS *****\n\n");
 
@@ -163,7 +157,7 @@ void printSimulationResults(struct PhysicalMemory *pm,
         uint64_t i64TableBytes = vm->i64NumVPages * sizeof(struct PTE);
         uint64_t i64TotalWasted = i64TableBytes - (i64UsedPTEs * sizeof(struct PTE));
 
-        printf("[%d] Trace%d.trc:\n", i, i);
+        printf("[%d] %s:\n", i, sArrFileNames[i]);
         printf("Used Page Table Entries: %llu ( %.3f%% )\n", 
                (unsigned long long)i64UsedPTEs, dUsedPct);
         printf("Page Table Wasted: %llu bytes\n\n", (unsigned long long)i64TotalWasted);
@@ -376,7 +370,7 @@ int main(int argc, char *argv[]) {
     // parse trace files (fps[0],fps[1],[fps2] with instructions/time slice in variable si32InstructionSize)
     runTraces(&pm, vms, fps, i8FileCountUseable, si32InstructionSize);
     
-    printSimulationResults(&pm, vms, i8FileCountUseable);
+    printSimulationResults(&pm, vms, sArrFileNames, i8FileCountUseable);
     
     return 0;
 }
