@@ -196,7 +196,6 @@ int main(int argc, char *argv[]) {
 
 
     for (int i = 1; i < argc; i++) {
-        printf("argv[i]=%s\n",argv[i]);
         if (!strcmp(argv[i],"-s")) {
             // read cache size
             //printf("reading -s\n");
@@ -233,7 +232,7 @@ int main(int argc, char *argv[]) {
         }
         else if (!strcmp(argv[i],"-n")) {
             // read instructions / time slice
-            printf("reading -n %s\n",argv[i+1]);
+            //printf("reading -n %s\n",argv[i+1]);
             si32InstructionSize = atoi(argv[++i]);     // -1 for max
         }
         else if (!strcmp(argv[i],"-u")) {
