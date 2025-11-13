@@ -343,7 +343,7 @@ int main(int argc, char *argv[]) {
                         // PTE = log2(PHYSPAGES) + 1 valid bit  [rounded up]
                         // RAM = 512k Entries * fileCount * (PTE / 8)
     printf("%-32s%d\n","Number of Physical Pages:",i64PhysicalPages); // assume page size is 4 KB
-    printf("%-32s%d\n","Number of Pages for System:",(int) ceil((double) i64PhysicalPages * (dSystemMemoryPerc/100)));
+    printf("%-32s%d\n","Number of Pages for System:",(int) ceil((double) i64PhysicalPages * dSystemMemoryPerc));
     printf("%-32s%d\n","Size of Page Table Entry:", i32PhysicalPageTableEntrySize); // physical address space + valid bit
     printf("%-32s%d bytes\n","Total RAM for Page Table(s):", (int) ceil((512 * 1024) * i8FileCount * ((int) ceil(log2(i64PhysicalPages)) + 1) / 8));
     
