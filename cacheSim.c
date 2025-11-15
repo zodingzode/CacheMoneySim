@@ -285,14 +285,21 @@ int main(int argc, char *argv[]) {
 
     
     // calculate block and set counts
-    i32NumCacheBlocks = (int) ceil(i64CacheSize / i32CacheBlockSize);
-    i32NumCacheSets = (iCacheAssoc <= 0 ? i32NumCacheBlocks : (int) ceil(i32NumCacheBlocks/iCacheAssoc));
+    i32NumCacheBlocks = (int)(i64CacheSize / i32CacheBlockSize);
+
+    // fully associative: one set with all blocks
+    if (iCacheAssoc <= 0) {
+        i32NumCacheSets = 1;
+        iCacheAssoc     = i32NumCacheBlocks;   
+    } else {
+        i32NumCacheSets = (int)(i32NumCacheBlocks / iCacheAssoc);
+    }
 
     // calculate address space
-    iAddressBusSize = (int) ceil(log2(i64PhysicalMemory));
-    iAddressBusIndexSize = (int) ceil(log2(i64CacheSize));
-    iAddressBusOffsetSize = (int) ceil(log2(i32CacheBlockSize));
-    iAddressBusTagSize = iAddressBusSize - (iAddressBusIndexSize + iAddressBusOffsetSize);
+    iAddressBusSize       = (uint8_t)ceil(log2((double)i64PhysicalMemory));
+    iAddressBusOffsetSize = (uint8_t)ceil(log2((double)i32CacheBlockSize));
+    iAddressBusIndexSize  = (uint8_t)ceil(log2((double)i32NumCacheSets));
+    iAddressBusTagSize    = iAddressBusSize - (iAddressBusIndexSize + iAddressBusOffsetSize);
     
 
     // calculate overhead -> Tag Space + Valid Bits (+ dirty bits?)
