@@ -123,9 +123,9 @@ void printSimulationResults(struct PhysicalMemory *pm,
     for (int i = 0; i < iNumVMs; i++)
         i64TotalFaults += vms[i].i64NumPageFaults;
 
-    uint64_t i64TotalHits = pm->i64NumAccesses - i64TotalFaults;
+    uint64_t i64VirtualPagesMapped = pm->i64NumAccesses;
 
-    uint64_t i64TotalPagesMapped = i64TotalHits + pm->i64PagesFromFree + i64TotalFaults;
+    uint64_t i64TotalHits = i64VirtualPagesMapped - pm->i64PagesFromFree - i64TotalFaults;
 
     printf("\n\n***** VIRTUAL MEMORY SIMULATION RESULTS *****\n\n");
 
@@ -134,7 +134,7 @@ void printSimulationResults(struct PhysicalMemory *pm,
     printf("Pages Available to User:      %llu\n\n",
            (unsigned long long)userAvail);
 
-    printf("Virtual Pages Mapped:         %llu\n", (unsigned long long)i64TotalPagesMapped);
+    printf("Virtual Pages Mapped:         %llu\n", (unsigned long long)i64VirtualPagesMapped);
     printf("-------------------------------\n");
     printf("Page Table Hits:              %llu\n", (unsigned long long)i64TotalHits);
     printf("Pages from Free:              %llu\n", (unsigned long long)pm->i64PagesFromFree);
@@ -290,16 +290,16 @@ int main(int argc, char *argv[]) {
     // fully associative: one set with all blocks
     if (iCacheAssoc <= 0) {
         i32NumCacheSets = 1;
-        iCacheAssoc     = i32NumCacheBlocks;   
+        iCacheAssoc = i32NumCacheBlocks;   
     } else {
         i32NumCacheSets = (int)(i32NumCacheBlocks / iCacheAssoc);
     }
 
     // calculate address space
-    iAddressBusSize       = (uint8_t)ceil(log2((double)i64PhysicalMemory));
+    iAddressBusSize = (uint8_t)ceil(log2((double)i64PhysicalMemory));
     iAddressBusOffsetSize = (uint8_t)ceil(log2((double)i32CacheBlockSize));
-    iAddressBusIndexSize  = (uint8_t)ceil(log2((double)i32NumCacheSets));
-    iAddressBusTagSize    = iAddressBusSize - (iAddressBusIndexSize + iAddressBusOffsetSize);
+    iAddressBusIndexSize = (uint8_t)ceil(log2((double)i32NumCacheSets));
+    iAddressBusTagSize = iAddressBusSize - (iAddressBusIndexSize + iAddressBusOffsetSize);
     
 
     // calculate overhead -> Tag Space + Valid Bits (+ dirty bits?)

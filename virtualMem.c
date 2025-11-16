@@ -106,27 +106,31 @@ uint64_t translateAddress(struct VM *vm,
     // Page Fault if not valid
     if (!(pte->i8Flags & FLAG_VALID)) {
 
-        uint64_t frameIndex;
+    uint64_t frameIndex;
 
-        if (pm->i64NumFramesUsed < pm->i64NumFramesUsable) {
-            frameIndex = pm->i64NumFramesUsed++;
-            pm->i64PagesFromFree++;
-        } else {
-            frameIndex = selectVictimFrameLRU(pm);
-            struct Frame *victim = &pm->frames[frameIndex];
-            victim->i8Flags &= ~FLAG_VALID;
-            vm->i64NumPageFaults++;
-        }
+    if (pm->i64NumFramesUsed < pm->i64NumFramesUsable) {
+        // Caso: hay frames libres
+        frameIndex = pm->i64NumFramesUsed++;
+        pm->i64PagesFromFree++;        // Pages from Free
+        // NO incrementes vm->i64NumPageFaults aquí
+    } else {
+        // Caso: NO hay frames libres -> verdadero "Total Page Fault" del PDF
+        frameIndex = selectVictimFrameLRU(pm);
+        struct Frame *victim = &pm->frames[frameIndex];
+        victim->i8Flags &= ~FLAG_VALID;
 
-        struct Frame *frame = &pm->frames[frameIndex];
-        frame->i64VirtualPage = vpn;
-        frame->i16ProcessId = vm->i16ProcessId;
-        frame->i8Flags = FLAG_VALID;
-        frame->i64Tick = i64GlobalTick;
+        vm->i64NumPageFaults++;        // SOLO AQUÍ, cuando hubo swap
+    }
 
-        pte->i64FrameNumber = frameIndex;
-        pte->i8Flags = FLAG_VALID;
-        pte->i64Tick = i64GlobalTick;
+    struct Frame *frame = &pm->frames[frameIndex];
+    frame->i64VirtualPage = vpn;
+    frame->i16ProcessId = vm->i16ProcessId;
+    frame->i8Flags = FLAG_VALID;
+    frame->i64Tick = i64GlobalTick;
+
+    pte->i64FrameNumber = frameIndex;
+    pte->i8Flags = FLAG_VALID;
+    pte->i64Tick = i64GlobalTick;
     }
 
     // Update access info
