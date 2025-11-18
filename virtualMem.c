@@ -37,6 +37,9 @@ void initPhysicalMemory(struct PhysicalMemory *pm,
     pm->i64NumEvictions = 0;
     pm->i64NumFramesUsed = 0;
     pm->i64PagesFromFree = 0;
+    
+    pm->vms    = NULL;
+    pm->iNumVMs = 0;
 }
 
 void freePhysicalMemory(struct PhysicalMemory *pm)
