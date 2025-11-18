@@ -370,6 +370,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Error: failed to open %s\n",sArrFileNames[i]);
             exit(EXIT_FAILURE);
         }
+        printf("initVM %d\n",i);
         initVM(&vms[i], i, 32, 4096, &pm);
     }
 
