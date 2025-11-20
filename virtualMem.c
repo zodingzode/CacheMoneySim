@@ -26,7 +26,7 @@ void initPhysicalMemory(struct PhysicalMemory *pm,
     pm->i32PageBytes       = i32PageBytes ? i32PageBytes : 4096;
     pm->dSystemMemoryPerc  = dSystemMemoryPerc;
     pm->i64NumFrames       = pm->i64PhysicalMemory / pm->i32PageBytes;
-    pm->i64NumFramesUsable = (uint64_t)(pm->i64NumFrames * (1.0 - pm->dSystemMemoryPerc));
+    pm->i64NumFramesUsable = (uint64_t)ceil(pm->i64NumFrames * (1.0 - pm->dSystemMemoryPerc));
 
     pm->frames = calloc(pm->i64NumFramesUsable, sizeof(struct Frame));
     if (!pm->frames) {
