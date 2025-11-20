@@ -18,6 +18,8 @@ struct Frame {
     uint64_t i64Tick;         // LRU timestamp
 };
 
+struct VM;
+
 struct PhysicalMemory {
     uint64_t i64PhysicalMemory;     ///// set by input
     uint64_t i32PageBytes;          // e.g. 4096
@@ -34,6 +36,9 @@ struct PhysicalMemory {
     uint64_t i64NumEvictions;
     uint64_t i64NumPageFaults;
     uint64_t i64PagesFromFree;
+
+    struct VM *vms;
+    int      iNumVMs;
 };
 
 struct VM {

@@ -135,15 +135,17 @@ void printSimulationResults(struct PhysicalMemory *pm,
            (unsigned long long)userAvail);
 
     printf("Virtual Pages Mapped:         %llu\n", (unsigned long long)i64VirtualPagesMapped);
-    printf("-------------------------------\n");
-    printf("Page Table Hits:              %llu\n", (unsigned long long)i64TotalHits);
-    printf("Pages from Free:              %llu\n", (unsigned long long)pm->i64PagesFromFree);
-    printf("Total Page Faults:            %llu\n\n",
-           (unsigned long long)i64TotalFaults);
+    printf("%8s-------------------------------\n", "");
+    printf("%8sPage Table Hits:              %llu\n", "", (unsigned long long)i64TotalHits);
+    printf("%8sPages from Free:              %llu\n", "", (unsigned long long)pm->i64PagesFromFree);
+    printf("%8sTotal Page Faults:            %llu\n\n", "", (unsigned long long)i64TotalFaults);
 
     printf("Page Table Usage Per Process:\n");
-    printf("-------------------------------\n");
+    printf("-------------------------------\n\n");
 
+    uint64_t i64NumPhysFrames = pm->i64NumFrames;
+    uint32_t i32PteBits = (uint32_t)ceil(log2((double)i64NumPhysFrames)) + 1;
+    uint32_t i32PteBytes = (i32PteBits + 7) / 8;
     for (int i = 0; i < iNumVMs; i++) {
         struct VM *vm = &vms[i];
 
@@ -153,14 +155,13 @@ void printSimulationResults(struct PhysicalMemory *pm,
                 i64UsedPTEs++;
         }
 
+        uint64_t i64TableBytes = vm->i64NumVPages * i32PteBytes;
+        uint64_t i64TotalWasted = i64TableBytes - (i64UsedPTEs * i32PteBytes);
         double dUsedPct = (100.0 * i64UsedPTEs) / vm->i64NumVPages;
-        uint64_t i64TableBytes = vm->i64NumVPages * sizeof(struct PTE);
-        uint64_t i64TotalWasted = i64TableBytes - (i64UsedPTEs * sizeof(struct PTE));
 
         printf("[%d] %s:\n", i, sArrFileNames[i]);
-        printf("Used Page Table Entries: %llu ( %.3f%% )\n", 
-               (unsigned long long)i64UsedPTEs, dUsedPct);
-        printf("Page Table Wasted: %llu bytes\n\n", (unsigned long long)i64TotalWasted);
+        printf("%8sUsed Page Table Entries: %llu ( %.3f%% )\n", "", (unsigned long long)i64UsedPTEs, dUsedPct);
+        printf("%8sPage Table Wasted: %llu bytes\n\n", "",(unsigned long long)i64TotalWasted);
     }
 }
 
@@ -250,6 +251,10 @@ int main(int argc, char *argv[]) {
     
     if (byteToKB(i64CacheSize) < 8 || byteToKB(i64CacheSize) > 8192) {
         exitBadParameters("Missing or invalid Cache Size");
+        return 1;
+    }
+    if (byteToMB(i64PhysicalMemory) < 128 || byteToMB(i64PhysicalMemory) > 4096) {
+        exitBadParameters("Missing or invalid Physical Memory");
         return 1;
     }
     if (i32CacheBlockSize < 8 || i32CacheBlockSize > 8192) {
