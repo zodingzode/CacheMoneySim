@@ -15,16 +15,16 @@
 
 static bool processTraceStep(struct VM *vm, FILE *fp)
 {
-    char line1[256], line2[256], blank[8];
-    if (!fgets(line1, sizeof(line1), fp)) return false;   // EOF
-    if (!fgets(line2, sizeof(line2), fp)) return false;
+    char lineEIP[256], lineMem[256], blank[8];
+    if (!fgets(lineEIP, sizeof(lineEIP), fp)) return false;   // EOF
+    if (!fgets(lineMem, sizeof(lineMem), fp)) return false;
     fgets(blank, sizeof(blank), fp); // skip separator (may hit EOF)
 
     uint64_t eip = 0, src = 0, dst = 0;
     char srcData[16] = "", dstData[16] = "";
 
-    sscanf(line1, "EIP (%*[^)]): %" SCNx64, &eip);
-    sscanf(line2, "dstM: %" SCNx64 " %8s   srcM: %" SCNx64 " %8s",
+    sscanf(lineEIP, "EIP (%*[^)]): %" SCNx64, &eip);
+    sscanf(lineMem, "dstM: %" SCNx64 " %8s   srcM: %" SCNx64 " %8s",
            &dst, dstData, &src, srcData);
 
     if (eip)
@@ -57,6 +57,8 @@ static bool processTraceStep(struct VM *vm, FILE *fp)
                 if (!processTraceStep(&vms[i], fps[i])) {
                     finished[i] = true;
                     active--;
+                    
+                    freeFramesForProcess(vms[i].pm, vms[i].i16ProcessId);
                     break;
                 }
                 executed++;
@@ -146,6 +148,10 @@ void printSimulationResults(struct PhysicalMemory *pm,
     uint64_t i64NumPhysFrames = pm->i64NumFrames;
     uint32_t i32PteBits = (uint32_t)ceil(log2((double)i64NumPhysFrames)) + 1;
     uint32_t i32PteBytes = (i32PteBits + 7) / 8;
+
+    //tmp
+    uint64_t i64LogicalEntries = 512ULL * 1024ULL;
+
     for (int i = 0; i < iNumVMs; i++) {
         struct VM *vm = &vms[i];
 
@@ -155,13 +161,17 @@ void printSimulationResults(struct PhysicalMemory *pm,
                 i64UsedPTEs++;
         }
 
-        uint64_t i64TableBytes = vm->i64NumVPages * i32PteBytes;
+        //uint64_t i64TableBytes = vm->i64NumVPages * i32PteBytes;
+        uint64_t i64TableBytes = i64LogicalEntries * i32PteBytes;
         uint64_t i64TotalWasted = i64TableBytes - (i64UsedPTEs * i32PteBytes);
-        double dUsedPct = (100.0 * i64UsedPTEs) / vm->i64NumVPages;
+        //double dUsedPct = (100.0 * i64UsedPTEs) / vm->i64NumVPages;
+        double dUsedPct = (100.0 * i64UsedPTEs) / i64LogicalEntries;
 
         printf("[%d] %s:\n", i, sArrFileNames[i]);
-        printf("%8sUsed Page Table Entries: %llu ( %.3f%% )\n", "", (unsigned long long)i64UsedPTEs, dUsedPct);
-        printf("%8sPage Table Wasted: %llu bytes\n\n", "",(unsigned long long)i64TotalWasted);
+        printf("%8sUsed Page Table Entries: %llu ( %.2f%% )\n", 
+                "", (unsigned long long)i64UsedPTEs, dUsedPct);
+        printf("%8sPage Table Wasted: %llu bytes\n\n", 
+                "",(unsigned long long)i64TotalWasted);
     }
 }
 
@@ -377,6 +387,9 @@ int main(int argc, char *argv[]) {
         }
         initVM(&vms[i], i, 32, 4096, &pm);
     }
+
+    pm.vms = vms;
+    pm.iNumVMs = i8FileCountUseable;
 
     // parse trace files (fps[0],fps[1],[fps2] with instructions/time slice in variable si32InstructionSize)
     runTraces(&pm, vms, fps, i8FileCountUseable, si32InstructionSize);

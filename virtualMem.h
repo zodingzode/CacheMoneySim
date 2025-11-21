@@ -76,6 +76,8 @@ void freeVM(struct VM *vm);
 uint64_t translateAddress(struct VM *vm, 
                           uint64_t virtualAddress, 
                           bool isWrite);
+                          
+void freeFramesForProcess(struct PhysicalMemory *pm, uint16_t i16Pid);
 
 void parseSimulationResults(struct PhysicalMemory *pm, 
                             struct VM *vms, 

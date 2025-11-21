@@ -9,7 +9,8 @@
 #define FLAG_VALID 0x1
 #define FLAG_DIRTY 0x2
 
-static uint32_t log2_int(uint32_t i32InitVal) {
+static uint32_t log2_int(uint32_t i32InitVal) 
+{
     uint32_t i32Log2 = 0;
     while ((1u << i32Log2) < i32InitVal) i32Log2++;
     return i32Log2;
@@ -29,7 +30,8 @@ void initPhysicalMemory(struct PhysicalMemory *pm,
     pm->i64NumFramesUsable = (uint64_t)ceil(pm->i64NumFrames * (1.0 - pm->dSystemMemoryPerc));
 
     pm->frames = calloc(pm->i64NumFramesUsable, sizeof(struct Frame));
-    if (!pm->frames) {
+    if (!pm->frames) 
+    {
         fprintf(stderr, "Failed to allocate global frame table\n");
         exit(EXIT_FAILURE);
     }
@@ -60,11 +62,12 @@ void initVM(struct VM *vm,
     vm->i32PageBytes            = _i32PageBytes ? _i32PageBytes : 4096;
     vm->i32OffsetBits           = log2_int(vm->i32PageBytes);
     vm->i32VPNBits              = vm->i32VirtualAddressBits - vm->i32OffsetBits;
-    vm->i64NumVPages            = (1ULL << vm->i32VPNBits)/2;
+    vm->i64NumVPages            = (1ULL << vm->i32VPNBits);
 
     vm->pm                      = _pm;
     vm->pageTable               = calloc(vm->i64NumVPages, sizeof(struct PTE));
-    if (!vm->pageTable) {
+    if (!vm->pageTable) 
+    {
         fprintf(stderr, "Failed to allocate memory for VM PID %u\n", _i16PID);
         exit(EXIT_FAILURE);
     }
@@ -80,7 +83,8 @@ static uint64_t selectVictimFrameLRU(struct PhysicalMemory *pm)
 {
     uint64_t i64OldestTick = UINT64_MAX;
     uint64_t i64Victim = 0;
-    for (uint64_t i = 0; i < pm->i64NumFramesUsed; i++) {
+    for (uint64_t i = 0; i < pm->i64NumFramesUsed; i++) 
+    {
         if ((pm->frames[i].i8Flags & FLAG_VALID) &&
             pm->frames[i].i64Tick < i64OldestTick)
         {
@@ -106,37 +110,77 @@ uint64_t translateAddress(struct VM *vm,
 
     struct PTE *pte = &vm->pageTable[vpn];
 
-    // Page Fault if not valid
-    if (!(pte->i8Flags & FLAG_VALID)) {
+    bool bHit = false;
+    if (pte->i8Flags & FLAG_VALID) 
+    {
+        uint64_t i64FrameIndex = pte->i64FrameNumber;
+        if (i64FrameIndex < pm->i64NumFramesUsed) 
+        {
+            struct Frame *f = &pm->frames[i64FrameIndex];
+            if ((f->i8Flags & FLAG_VALID) &&
+                 f->i16ProcessId == vm->i16ProcessId &&
+                 f->i64VirtualPage == vpn) 
+            {
+                bHit = true;
+            }
+        }
+    }
 
-        uint64_t frameIndex;
+    // Miss | Allocate from Free or Evict
+    if (!bHit) {
 
-        if (pm->i64NumFramesUsed < pm->i64NumFramesUsable) {
-            frameIndex = pm->i64NumFramesUsed++;
+        uint64_t i64FrameIndex = UINT64_MAX;
+
+        if (pm->i64NumFramesUsed < pm->i64NumFramesUsable) 
+        {
+            // Allocate from Free
+            i64FrameIndex = pm->i64NumFramesUsed++;
             pm->i64PagesFromFree++;
-        } else {
-            frameIndex = selectVictimFrameLRU(pm);
-            struct Frame *victim = &pm->frames[frameIndex];
-            victim->i8Flags &= ~FLAG_VALID;
-            vm->i64NumPageFaults++;
+        } 
+        else 
+        {
+            // Try to find a truly free (invalid) frame first.
+            for (uint64_t i = 0; i < pm->i64NumFramesUsable; i++) 
+            {
+                if (!(pm->frames[i].i8Flags & FLAG_VALID)) 
+                {
+                    i64FrameIndex = i;
+                    pm->i64PagesFromFree++;
+                    break;
+                }
+            }
+
+            // Case 3: No invalid frame found → must evict LRU
+            if (i64FrameIndex == UINT64_MAX) 
+            {
+                i64FrameIndex = selectVictimFrameLRU(pm);
+                struct Frame *victim = &pm->frames[i64FrameIndex];
+
+                // mark victim frame invalid
+                victim->i8Flags &= ~FLAG_VALID;
+
+                // Count this as a TRUE major page fault
+                vm->i64NumPageFaults++;
+            }
         }
 
-        struct Frame *frame = &pm->frames[frameIndex];
-        frame->i64VirtualPage = vpn;
-        frame->i16ProcessId = vm->i16ProcessId;
-        frame->i8Flags = FLAG_VALID;
-        frame->i64Tick = i64GlobalTick;
+        struct Frame *frame     = &pm->frames[i64FrameIndex];
+        frame->i64VirtualPage   = vpn;
+        frame->i16ProcessId     = vm->i16ProcessId;
+        frame->i8Flags          = FLAG_VALID;
+        frame->i64Tick          = i64GlobalTick;
 
-        pte->i64FrameNumber = frameIndex;
-        pte->i8Flags = FLAG_VALID;
-        pte->i64Tick = i64GlobalTick;
+        pte->i64FrameNumber     = i64FrameIndex;
+        pte->i8Flags            = FLAG_VALID;
+        pte->i64Tick            = i64GlobalTick;
     }
 
     // Update access info
     struct Frame *frame = &pm->frames[pte->i64FrameNumber];
     frame->i64Tick = i64GlobalTick;
     pte->i64Tick   = i64GlobalTick;
-    if (isWrite) {
+    if (isWrite) 
+    {
         frame->i8Flags |= FLAG_DIRTY;
         pte->i8Flags   |= FLAG_DIRTY;
     }
@@ -145,3 +189,16 @@ uint64_t translateAddress(struct VM *vm,
     return physAddr;
 }
 
+void freeFramesForProcess(struct PhysicalMemory *pm, uint16_t i16Pid)
+{
+    for (uint64_t i64Frame = 0; i64Frame < pm->i64NumFramesUsed; i64Frame++) 
+    {
+        struct Frame *fr = &pm->frames[i64Frame];
+
+        if ((fr->i8Flags & FLAG_VALID) &&
+            fr->i16ProcessId == i16Pid)
+        {
+            fr->i8Flags = 0;   // mark free
+        }
+    }
+}
