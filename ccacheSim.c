@@ -1,5 +1,5 @@
 #include "virtualMem.h"
-#include "cache.h"
+#include "ccache.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -7,72 +7,49 @@
 #include <math.h> 
 #include <inttypes.h>
 #include <stdbool.h>
- // gcc cacheSim.c -o cacheSim 
- // REVIEW RODRIGO gcc cacheSim.c -o cacheSim -lm
+ // gcc cacheSim.c virtualMem.c ccache.c -o cacheSim.exe
  // ./cacheSim.exe -s 512 -b 16 -a 4 -r rr -p 1024 -n 100 -u 75 -f Trace1half.trc -f A-9_new_trunk1.trc -f A-10_new_1.5_a.pdf.trc
  // rm cacheSim.exe
 
+#define DATA_BYTES 4
 
-
-static bool processTraceStep(struct VM *vm,
-                             FILE *fp,
-                             struct Cache *cache,
-                             uint64_t *pTotalCycles,
-                             uint64_t *pTotalInstr)
+static bool processTraceStep(struct VM *vm, FILE *fp, struct Cache *cache)
 {
     char lineEIP[256], lineMem[256], blank[8];
     if (!fgets(lineEIP, sizeof(lineEIP), fp)) return false;   // EOF
     if (!fgets(lineMem, sizeof(lineMem), fp)) return false;
     fgets(blank, sizeof(blank), fp); // skip separator (may hit EOF)
 
-    int instrLen = 0;
+    uint32_t i32InstrLen = 0;
     uint64_t eip = 0, src = 0, dst = 0;
     char srcData[16] = "", dstData[16] = "";
 
-    // Ahora también leemos la longitud de la instrucción
-    sscanf(lineEIP, "EIP (%d): %" SCNx64, &instrLen, &eip);
+    sscanf(lineEIP, "EIP (%u): %" SCNx64, &i32InstrLen, &eip);
     sscanf(lineMem, "dstM: %" SCNx64 " %8s   srcM: %" SCNx64 " %8s",
            &dst, dstData, &src, srcData);
 
-    // 1) Instrucción (EIP)
-    if (eip && instrLen > 0) {
-        uint64_t physEip = translateAddress(vm, eip, false);   // instrucción = read
-        uint32_t cyclesCache = cacheAccess(cache, physEip, (uint32_t)instrLen);
-        *pTotalCycles += cyclesCache;
-        *pTotalCycles += 2;            // +2 ciclos por ejecutar la instrucción
-        (*pTotalInstr)++;              // contamos una instrucción
-        cache->instrBytes += (uint64_t)instrLen;
+    if (eip != 0 && i32InstrLen > 0) {
+        uint64_t phys = translateAddress(vm, eip, false);    // instruction fetch (read)
+        cacheAccess(cache, phys, false, true, i32InstrLen);
     }
-
-    // 2) srcM (lectura de 4 bytes)
-    if (strcmp(srcData, "--------") != 0 && src != 0) {
-        uint64_t physSrc = translateAddress(vm, src, false);   // read
-        uint32_t cyclesCache = cacheAccess(cache, physSrc, 4);
-        *pTotalCycles += cyclesCache;
-        *pTotalCycles += 1;            // +1 ciclo por dirección efectiva
-        cache->srcDstBytes += 4;
+    if (src != 0 && strcmp(srcData, "--------") != 0) {
+        uint64_t phys = translateAddress(vm, src, false);    // read
+        cacheAccess(cache, phys, false, false, DATA_BYTES);
     }
-
-    // 3) dstM (escritura de 4 bytes)
-    if (strcmp(dstData, "--------") != 0 && dst != 0) {
-        uint64_t physDst = translateAddress(vm, dst, true);    // write
-        uint32_t cyclesCache = cacheAccess(cache, physDst, 4);
-        *pTotalCycles += cyclesCache;
-        *pTotalCycles += 1;            // +1 ciclo por dirección efectiva
-        cache->srcDstBytes += 4;
+    if (dst != 0 && strcmp(dstData, "--------") != 0) {
+        uint64_t phys = translateAddress(vm, dst, true);     // write
+        cacheAccess(cache, phys, true, false, DATA_BYTES);
     }
 
     return true;
 }
 
-void runTraces(struct PhysicalMemory *pm,
+ void runTraces(struct PhysicalMemory *pm,
                struct VM *vms,
                FILE **fps,
                int numFiles,
                int32_t si32InstructionSize,
-               struct Cache *cache,
-               uint64_t *pTotalCycles,
-               uint64_t *pTotalInstr)
+               struct Cache *cache)
 {
     bool finished[numFiles];
     memset(finished, 0, sizeof(finished));
@@ -84,24 +61,20 @@ void runTraces(struct PhysicalMemory *pm,
             if (finished[i]) continue;
 
             uint32_t executed = 0;
-            while (executed < si32InstructionSize || si32InstructionSize == -1) {
-                if (!processTraceStep(&vms[i], fps[i], cache, pTotalCycles, pTotalInstr)) {
+            while (executed < si32InstructionSize) {
+                if (!processTraceStep(&vms[i], fps[i], cache)) {
                     finished[i] = true;
                     active--;
+                    
                     freeFramesForProcess(vms[i].pm, vms[i].i16ProcessId);
                     break;
                 }
                 executed++;
-                if (si32InstructionSize == -1) {
-                    // -1 = procesa TODO el archivo, sin timeslice
-                    continue;
-                }
             }
         }
         round++;
     }
 }
-
 
 
 const char* policy_name(char *policy){ 
@@ -205,11 +178,10 @@ void printSimulationResults(struct PhysicalMemory *pm,
         printf("[%d] %s:\n", i, sArrFileNames[i]);
         printf("%8sUsed Page Table Entries: %llu ( %.2f%% )\n", 
                 "", (unsigned long long)i64UsedPTEs, dUsedPct);
-        printf("%8sPage Table Wasted: %llu bytes\n\n\n", 
+        printf("%8sPage Table Wasted: %llu bytes\n\n", 
                 "",(unsigned long long)i64TotalWasted);
     }
 }
-
 
 int main(int argc, char *argv[]) {
 
@@ -240,9 +212,6 @@ int main(int argc, char *argv[]) {
 
     uint8_t i8FileCount = 0;
     uint8_t i8FileCountUseable = 0;
-    struct Cache cache;
-    uint64_t totalCycles = 0;
-    uint64_t totalInstructions = 0;
 
 
     for (int i = 1; i < argc; i++) {
@@ -407,20 +376,6 @@ int main(int argc, char *argv[]) {
     printf("%-32s%d\n","Size of Page Table Entry:", i32PhysicalPageTableEntrySize); // physical address space + valid bit
     printf("%-32s%d bytes\n","Total RAM for Page Table(s):", (int) ceil((512 * 1024) * i8FileCount * ((int) ceil(log2(i64PhysicalPages)) + 1) / 8));
     
-    CachePolicy policy;
-    if (strcmp(sCacheReplacePolicy, "rr") == 0) {
-        policy = CACHE_RR;
-    } else {
-        // cualquier otra cosa la tratamos como random (o ajustas si quieres soportar más)
-        policy = CACHE_RND;
-    }
-
-    initCache(&cache,
-              (uint32_t)i64CacheSize,   // bytes
-              i32CacheBlockSize,
-              iCacheAssoc,
-              policy);
-
     
 
     struct PhysicalMemory pm;
@@ -428,12 +383,6 @@ int main(int argc, char *argv[]) {
                         i64PhysicalMemory,
                         4096,
                         dSystemMemoryPerc);
-    pm.vms = NULL;        
-    pm.iNumVMs = 0;       
-
-    pm.cache = &cache;    //to let virtualMem invalidate pages
-
-                        
     
     struct VM vms[i8FileCountUseable];
     
@@ -450,63 +399,26 @@ int main(int argc, char *argv[]) {
     pm.vms = vms;
     pm.iNumVMs = i8FileCountUseable;
 
+
+    ReplacementPolicy rp = policy_from_string(sCacheReplacePolicy);
+    struct Cache cache;
+    initCache(&cache,
+                i32NumCacheSets,
+                iCacheAssoc,
+                i32CacheBlockSize,
+                iAddressBusTagSize,
+                iAddressBusIndexSize,
+                iAddressBusOffsetSize,
+                i64CacheSize,
+                i64PhysicalMemory,
+                rp);
+
+
     // parse trace files (fps[0],fps[1],[fps2] with instructions/time slice in variable si32InstructionSize)
-    runTraces(&pm,
-              vms,
-              fps,
-              i8FileCountUseable,
-              si32InstructionSize,
-              &cache,
-              &totalCycles,
-              &totalInstructions);
-
-    // +100 cycles por cada page fault
-    //totalCycles += pm.i64NumPageFaults * 100;
-
-    // ====== MILESTONE 2: VM RESULTS (igual que antes) ======
+    runTraces(&pm, vms, fps, i8FileCountUseable, si32InstructionSize, &cache);
+    
     printSimulationResults(&pm, vms, sArrFileNames, i8FileCountUseable);
-
-    // ====== MILESTONE 3: CACHE RESULTS (en main, como los otros milestones) ======
-    double hitRate  = (cache.accesses > 0)
-                      ? (100.0 * (double)cache.hits / (double)cache.accesses)
-                      : 0.0;
-    double missRate = 100.0 - hitRate;
-
-    double cpi = (totalInstructions > 0)
-                 ? ((double)totalCycles / (double)totalInstructions)
-                 : 0.0;
-
-    double implKB = byteToKB(i64CacheSize + i32CacheSizeOverhead);
-
-    double overheadPerBlock = (double)i32CacheSizeOverhead /
-                              (double)i32NumCacheBlocks;
-
-    // Unused KB = ((TotalBlocks - CompulsoryMisses) * (BlockSize + overheadPerBlock)) / 1024
-    double unusedKB = ((double)(i32NumCacheBlocks - cache.compulsoryMisses) *
-                      ((double)cache.blockSize + overheadPerBlock)) / 1024.0;
-
-    double wastePerc = (implKB > 0.0)
-                       ? (100.0 * unusedKB / implKB)
-                       : 0.0;
-
-    printf("***** CACHE SIMULATION RESULTS  *****\n");
-    printf("Total Cache Accesses:		%" PRIu64 "\n", cache.accesses);
-    printf("--- Instruction Bytes:		%" PRIu64 "\n", cache.instrBytes);
-    printf("--- SrcDst Bytes:		%" PRIu64 "\n", cache.srcDstBytes);
-    printf("Cache Hits:			%" PRIu64 "\n", cache.hits);
-    printf("Cache Misses:			%" PRIu64 "\n", cache.misses);
-    printf("--- Compulsory Misses:		%" PRIu64 "\n", cache.compulsoryMisses);
-    printf("--- Conflict Misses:		%" PRIu64 "\n\n\n", cache.conflictMisses);
-    printf("***** *****  CACHE HIT & MISS RATE:  ***** *****\n");
-    printf("Hit Rate:			%.4f%%\n", hitRate);
-    printf("Miss Rate:			%.4f%%\n", missRate);
-    printf("CPI:				%.2f Cycles/Instruction (%" PRIu64 ")\n", cpi, (totalInstructions));
-    printf("Unused Cache Space:		%.2f KB / %.2f KB = %.2f%%\n",
-           unusedKB, implKB, wastePerc);
-    printf("Unused Cache Blocks:		%" PRIu64 " / %" PRIu32 "\n",
-           (uint64_t)(i32NumCacheBlocks - cache.compulsoryMisses),
-           i32NumCacheBlocks);
-
-           
+    printCacheResults(&cache);
+    
     return 0;
 }
