@@ -39,6 +39,8 @@ struct PhysicalMemory {
 
     struct VM *vms;
     int      iNumVMs;
+
+    struct Cache *cache;
 };
 
 struct VM {
@@ -82,6 +84,8 @@ void freeFramesForProcess(struct PhysicalMemory *pm, uint16_t i16Pid);
 void parseSimulationResults(struct PhysicalMemory *pm, 
                             struct VM *vms, 
                             int numVMs);
+
+struct Cache;
 
 #endif
 

@@ -1,4 +1,5 @@
 #include "virtualMem.h"
+#include "cache.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -42,6 +43,11 @@ void initPhysicalMemory(struct PhysicalMemory *pm,
     
     pm->vms    = NULL;
     pm->iNumVMs = 0;
+
+    pm->i64NumPageFaults = 0;
+    pm->cache= NULL;
+
+
 }
 
 void freePhysicalMemory(struct PhysicalMemory *pm)
@@ -156,12 +162,20 @@ uint64_t translateAddress(struct VM *vm,
                 i64FrameIndex = selectVictimFrameLRU(pm);
                 struct Frame *victim = &pm->frames[i64FrameIndex];
 
-                // mark victim frame invalid
+                // invalidar frame
                 victim->i8Flags &= ~FLAG_VALID;
 
-                // Count this as a TRUE major page fault
+                // Avisar al caché: esta página física se va
+                if (pm->cache) {
+                    uint64_t physBase = i64FrameIndex * vm->i32PageBytes;
+                    cacheInvalidateRange(pm->cache, physBase, vm->i32PageBytes);
+                }
+
+                // Page fault global y por VM
                 vm->i64NumPageFaults++;
+                pm->i64NumPageFaults++;
             }
+
         }
 
         struct Frame *frame     = &pm->frames[i64FrameIndex];
@@ -189,16 +203,16 @@ uint64_t translateAddress(struct VM *vm,
     return physAddr;
 }
 
-void freeFramesForProcess(struct PhysicalMemory *pm, uint16_t i16Pid)
-{
-    for (uint64_t i64Frame = 0; i64Frame < pm->i64NumFramesUsed; i64Frame++) 
-    {
-        struct Frame *fr = &pm->frames[i64Frame];
-
-        if ((fr->i8Flags & FLAG_VALID) &&
-            fr->i16ProcessId == i16Pid)
-        {
-            fr->i8Flags = 0;   // mark free
+void freeFramesForProcess(struct PhysicalMemory *pm, uint16_t pid) {
+    for (uint64_t i = 0; i < pm->i64NumFramesUsed; i++) {
+        struct Frame *fr = &pm->frames[i];
+        if ((fr->i8Flags & FLAG_VALID) && fr->i16ProcessId == pid) {
+            // invalidar caché de esa página física
+            if (pm->cache) {
+                uint64_t physBase = i * pm->i32PageBytes; // ojo: nombre del campo
+                cacheInvalidateRange(pm->cache, physBase, pm->i32PageBytes);
+            }
+            fr->i8Flags = 0;
         }
     }
 }
