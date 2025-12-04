@@ -1,4 +1,5 @@
 #include "virtualMem.h"
+#include "ccache.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -6,33 +7,39 @@
 #include <math.h> 
 #include <inttypes.h>
 #include <stdbool.h>
- // gcc cacheSim.c -o cacheSim 
- // REVIEW RODRIGO gcc cacheSim.c -o cacheSim -lm
+ // gcc cacheSim.c virtualMem.c ccache.c -o cacheSim.exe
  // ./cacheSim.exe -s 512 -b 16 -a 4 -r rr -p 1024 -n 100 -u 75 -f Trace1half.trc -f A-9_new_trunk1.trc -f A-10_new_1.5_a.pdf.trc
  // rm cacheSim.exe
 
+#define DATA_BYTES 4
 
-
-static bool processTraceStep(struct VM *vm, FILE *fp)
+static bool processTraceStep(struct VM *vm, FILE *fp, struct Cache *cache)
 {
     char lineEIP[256], lineMem[256], blank[8];
     if (!fgets(lineEIP, sizeof(lineEIP), fp)) return false;   // EOF
     if (!fgets(lineMem, sizeof(lineMem), fp)) return false;
     fgets(blank, sizeof(blank), fp); // skip separator (may hit EOF)
 
+    uint32_t i32InstrLen = 0;
     uint64_t eip = 0, src = 0, dst = 0;
     char srcData[16] = "", dstData[16] = "";
 
-    sscanf(lineEIP, "EIP (%*[^)]): %" SCNx64, &eip);
+    sscanf(lineEIP, "EIP (%u): %" SCNx64, &i32InstrLen, &eip);
     sscanf(lineMem, "dstM: %" SCNx64 " %8s   srcM: %" SCNx64 " %8s",
            &dst, dstData, &src, srcData);
 
-    if (eip)
-        translateAddress(vm, eip, false);    // instruction fetch (read)
-    if (strcmp(srcData, "--------") != 0)
-        translateAddress(vm, src, false);    // read
-    if (strcmp(dstData, "--------") != 0)
-        translateAddress(vm, dst, true);     // write
+    if (eip != 0 && i32InstrLen > 0) {
+        uint64_t phys = translateAddress(vm, eip, false);    // instruction fetch (read)
+        cacheAccess(cache, phys, false, true, i32InstrLen);
+    }
+    if (src != 0 && strcmp(srcData, "--------") != 0) {
+        uint64_t phys = translateAddress(vm, src, false);    // read
+        cacheAccess(cache, phys, false, false, DATA_BYTES);
+    }
+    if (dst != 0 && strcmp(dstData, "--------") != 0) {
+        uint64_t phys = translateAddress(vm, dst, true);     // write
+        cacheAccess(cache, phys, true, false, DATA_BYTES);
+    }
 
     return true;
 }
@@ -41,7 +48,8 @@ static bool processTraceStep(struct VM *vm, FILE *fp)
                struct VM *vms,
                FILE **fps,
                int numFiles,
-               int32_t si32InstructionSize)
+               int32_t si32InstructionSize,
+               struct Cache *cache)
 {
     bool finished[numFiles];
     memset(finished, 0, sizeof(finished));
@@ -54,7 +62,7 @@ static bool processTraceStep(struct VM *vm, FILE *fp)
 
             uint32_t executed = 0;
             while (executed < si32InstructionSize) {
-                if (!processTraceStep(&vms[i], fps[i])) {
+                if (!processTraceStep(&vms[i], fps[i], cache)) {
                     finished[i] = true;
                     active--;
                     
@@ -391,10 +399,26 @@ int main(int argc, char *argv[]) {
     pm.vms = vms;
     pm.iNumVMs = i8FileCountUseable;
 
+
+    ReplacementPolicy rp = policy_from_string(sCacheReplacePolicy);
+    struct Cache cache;
+    initCache(&cache,
+                i32NumCacheSets,
+                iCacheAssoc,
+                i32CacheBlockSize,
+                iAddressBusTagSize,
+                iAddressBusIndexSize,
+                iAddressBusOffsetSize,
+                i64CacheSize,
+                i64PhysicalMemory,
+                rp);
+
+
     // parse trace files (fps[0],fps[1],[fps2] with instructions/time slice in variable si32InstructionSize)
-    runTraces(&pm, vms, fps, i8FileCountUseable, si32InstructionSize);
+    runTraces(&pm, vms, fps, i8FileCountUseable, si32InstructionSize, &cache);
     
     printSimulationResults(&pm, vms, sArrFileNames, i8FileCountUseable);
+    printCacheResults(&cache);
     
     return 0;
 }
