@@ -213,6 +213,7 @@ void printSimulationResults(struct PhysicalMemory *pm,
 
 int main(int argc, char *argv[]) {
 
+    double dCostPerKB = 0.07;
     uint64_t i64PhysicalMemory = 0;
     uint64_t i64PhysicalPages = 0;
     uint32_t i32PhysicalPageTableEntrySize = 0;
@@ -489,6 +490,8 @@ int main(int argc, char *argv[]) {
                        ? (100.0 * unusedKB / implKB)
                        : 0.0;
 
+    double wasteDollars = unusedKB * dCostPerKB;
+
     printf("***** CACHE SIMULATION RESULTS  *****\n");
     printf("Total Cache Accesses:		%" PRIu64 "\n", cache.accesses);
     printf("--- Instruction Bytes:		%" PRIu64 "\n", cache.instrBytes);
@@ -501,8 +504,10 @@ int main(int argc, char *argv[]) {
     printf("Hit Rate:			%.4f%%\n", hitRate);
     printf("Miss Rate:			%.4f%%\n", missRate);
     printf("CPI:				%.2f Cycles/Instruction (%" PRIu64 ")\n", cpi, (totalInstructions));
-    printf("Unused Cache Space:		%.2f KB / %.2f KB = %.2f%%\n",
-           unusedKB, implKB, wastePerc);
+    printf("Unused Cache Space:		%.2f KB / %.2f KB = %.2f%%  Waste: $%.2f\n",
+    unusedKB, implKB, wastePerc, wasteDollars);
+
+
     printf("Unused Cache Blocks:		%" PRIu64 " / %" PRIu32 "\n",
            (uint64_t)(i32NumCacheBlocks - cache.compulsoryMisses),
            i32NumCacheBlocks);
