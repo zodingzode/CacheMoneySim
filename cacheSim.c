@@ -480,8 +480,12 @@ int main(int argc, char *argv[]) {
     double overheadPerBlock = (double)i32CacheSizeOverhead /
                               (double)i32NumCacheBlocks;
 
+    int64_t i64EstUsedBlocks   = (int64_t)cache.compulsoryMisses;
+    int64_t i64EstUnusedBlocks = (int64_t)i32NumCacheBlocks - i64EstUsedBlocks;
+    if (i64EstUnusedBlocks < 0) i64EstUnusedBlocks = 0;
+
     // Unused KB = ((TotalBlocks - CompulsoryMisses) * (BlockSize + overheadPerBlock)) / 1024
-    double unusedKB = ((double)(i32NumCacheBlocks - cache.compulsoryMisses) *
+    double unusedKB = ((double)i64EstUnusedBlocks *
                       ((double)cache.blockSize + overheadPerBlock)) / 1024.0;
 
     double wastePerc = (implKB > 0.0)
@@ -508,7 +512,7 @@ int main(int argc, char *argv[]) {
 
 
     printf("Unused Cache Blocks:		%" PRIu64 " / %" PRIu32 "\n",
-           (uint64_t)(i32NumCacheBlocks - cache.compulsoryMisses),
+           (uint64_t)i64EstUnusedBlocks,
            i32NumCacheBlocks);
 
            
