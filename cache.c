@@ -72,6 +72,7 @@ uint32_t cacheAccess(struct Cache *c,
     // iterate per address and detect block change 
 
     uint32_t cycles = 0;
+    c->addresses++;
 
     uint64_t start = physAddr;
     uint64_t end   = physAddr + length - 1;

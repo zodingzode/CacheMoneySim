@@ -493,7 +493,8 @@ int main(int argc, char *argv[]) {
     double wasteDollars = unusedKB * dCostPerKB;
 
     printf("***** CACHE SIMULATION RESULTS  *****\n");
-    printf("Total Cache Accesses:		%" PRIu64 "\n", cache.accesses);
+    printf("Total Cache Accesses:		%" PRIu64 "	(%" PRIu64 "	addresses)\n",
+       cache.accesses, cache.addresses);
     printf("--- Instruction Bytes:		%" PRIu64 "\n", cache.instrBytes);
     printf("--- SrcDst Bytes:		%" PRIu64 "\n", cache.srcDstBytes);
     printf("Cache Hits:			%" PRIu64 "\n", cache.hits);

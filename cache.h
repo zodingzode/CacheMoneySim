@@ -41,6 +41,8 @@ struct Cache {
     uint64_t instrBytes;
     uint64_t srcDstBytes;
 
+    uint64_t addresses;  
+
     // for RR
     uint64_t *rrNext;    
 
