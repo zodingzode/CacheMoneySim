@@ -182,9 +182,7 @@ void printSimulationResults(struct PhysicalMemory *pm,
 
     uint64_t i64NumPhysFrames = pm->i64NumFrames;
     uint32_t i32PteBits = (uint32_t)ceil(log2((double)i64NumPhysFrames)) + 1;
-    uint32_t i32PteBytes = (i32PteBits + 7) / 8;
 
-    //tmp
     uint64_t i64LogicalEntries = 512ULL * 1024ULL;
 
     for (int i = 0; i < iNumVMs; i++) {
@@ -196,17 +194,17 @@ void printSimulationResults(struct PhysicalMemory *pm,
                 i64UsedPTEs++;
         }
 
-        //uint64_t i64TableBytes = vm->i64NumVPages * i32PteBytes;
-        uint64_t i64TableBytes = i64LogicalEntries * i32PteBytes;
-        uint64_t i64TotalWasted = i64TableBytes - (i64UsedPTEs * i32PteBytes);
-        //double dUsedPct = (100.0 * i64UsedPTEs) / vm->i64NumVPages;
+        uint64_t i64TableBits = i64LogicalEntries * i32PteBits;
+        uint64_t i64UsedBits  = i64UsedPTEs      * i32PteBits;
+        uint64_t i64TotalWasted = (i64TableBits - i64UsedBits) / 8;  // truncate
+
         double dUsedPct = (100.0 * i64UsedPTEs) / i64LogicalEntries;
 
         printf("[%d] %s:\n", i, sArrFileNames[i]);
-        printf("%8sUsed Page Table Entries: %llu ( %.2f%% )\n", 
-                "", (unsigned long long)i64UsedPTEs, dUsedPct);
-        printf("%8sPage Table Wasted: %llu bytes\n\n\n", 
-                "",(unsigned long long)i64TotalWasted);
+        printf("%8sUsed Page Table Entries: %llu ( %.2f%% )\n",
+            "", (unsigned long long)i64UsedPTEs, dUsedPct);
+        printf("%8sPage Table Wasted: %llu bytes\n\n\n",
+            "", (unsigned long long)i64TotalWasted);
     }
 }
 
